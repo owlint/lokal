@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/owlint/lokal/pkg/commands"
+	"github.com/owlint/lokal/internal/commands"
 	"github.com/urfave/cli/v2"
 )
 

@@ -3,8 +3,6 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 
 	"github.com/owlint/lokal/pkg/domain"
 	v1 "k8s.io/api/core/v1"
@@ -16,42 +14,26 @@ type PodDescriber struct {
 	kubernetes.Interface
 }
 
+func NewPodDescriber(clientset *kubernetes.Clientset) *PodDescriber {
+	return &PodDescriber{
+		Interface: clientset,
+	}
+}
+
 func (d *PodDescriber) ReadEnvs(ctx context.Context, namespace, pod, container string) ([]domain.EnvironmentVariable, error) {
-	// TODO: retrieve from deployement
-	pods, err := d.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	deployment, err := d.AppsV1().Deployments(namespace).Get(ctx, pod, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	podDescriptor := d.latestPod(*pods, pod)
-	if podDescriptor == nil {
-		return nil, fmt.Errorf("invalid pod %s", pod)
-	}
-
-	for _, containerDescriptor := range podDescriptor.Spec.Containers {
+	for _, containerDescriptor := range deployment.Spec.Template.Spec.Containers {
 		if containerDescriptor.Name == container {
-
 			return d.extractContainerEnv(ctx, namespace, containerDescriptor)
 		}
 	}
 
+	// TODO: change error msg
 	return nil, errors.New("container not found")
-}
-
-func (d *PodDescriber) latestPod(pods v1.PodList, prefix string) *v1.Pod {
-	var latest *v1.Pod
-	for _, pod := range pods.Items {
-		pod := pod
-		if !strings.HasPrefix(pod.Name, prefix) {
-			continue
-		}
-
-		if latest == nil || pod.CreationTimestamp.Time.After(latest.CreationTimestamp.Time) {
-			latest = &pod
-		}
-	}
-
-	return latest
 }
 
 func (d *PodDescriber) extractContainerEnv(ctx context.Context, namespace string, container v1.Container) ([]domain.EnvironmentVariable, error) {

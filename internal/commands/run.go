@@ -52,10 +52,7 @@ var RunCommand = &cli.Command{
 			log.Fatal(err)
 		}
 
-		// TODO: constructor
-		describer := services.PodDescriber{
-			clientset,
-		}
+		describer := services.NewPodDescriber(clientset)
 
 		// TODO: merge with config file
 		envs, err := describer.ReadEnvs(c.Context, c.String("namespace"), c.String("pod"), c.String("container"))
