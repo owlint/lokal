@@ -24,7 +24,7 @@ You can also configure theses parameters using a YAML configuration file contain
 - `namespace` (string): The Kubernetes namespace where the deployment is located.
 - `deployment` (string): The name of the deployment in which the container resides.
 - `container` (string): The name of the container from which to retrieve the environment variables.
-- `command` (string): The command to execute, with placeholders for environment variable injection.
+- `command` (string): The command to execute.
 - `env` (list): A list of environment variables to inject. Each environment variable is defined with a `name` and `value`.
 
 ##### Exemple
