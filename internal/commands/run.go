@@ -1,15 +1,16 @@
 package commands
 
 import (
-	"log"
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
-	"github.com/owlint/lokal/pkg/services"
+	"github.com/owlint/lokal/internal/services"
+	localConfig "github.com/owlint/lokal/pkg/config"
+	"github.com/owlint/lokal/pkg/services/k8s"
 	"github.com/urfave/cli/v2"
-
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 var RunCommand = &cli.Command{
@@ -18,50 +19,94 @@ var RunCommand = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:     "namespace",
-			Usage:    "Namespace",
-			Required: true,
+			Usage:    "Namespace within cluster. Overrides config file if provided.",
+			Required: false,
 		},
 		&cli.StringFlag{
-			Name:     "pod",
-			Usage:    "Pod",
-			Required: true,
+			Name:     "deployment",
+			Usage:    "Deployment within namespace. Overrides config file if provided.",
+			Required: false,
 		},
 		&cli.StringFlag{
 			Name:     "container",
-			Usage:    "Container",
-			Required: true,
+			Usage:    "Container within deployment. Will use pod name if ommited.",
+			Required: false,
 		},
 		&cli.StringFlag{
 			Name:     "command",
-			Usage:    "Command to run",
+			Usage:    "Command to run.",
 			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:     "force-namespace",
+			Usage:    "Add namespace to environnement variables referencing local deployment.",
+			Value:    true,
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:     "config",
+			Usage:    "Path to the local config file.",
+			Required: false,
+			Value:    "./lokal.yaml",
+		},
+		&cli.StringFlag{
+			Name:     "kube-config",
+			Usage:    "Path to the kube config file.",
+			Required: false,
+			Value: filepath.Join(
+				os.Getenv("HOME"), ".kube", "config",
+			),
 		},
 	},
 	Action: func(c *cli.Context) error {
-		// TODO: get from env
-		kubeconfig := filepath.Join(
-			os.Getenv("HOME"), ".kube", "config",
-		)
-		config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+		configPath := c.String("config")
+		config, err := localConfig.ReadLocalConfig(configPath)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("Couldn't read lokal config %s, ignoring...\n", configPath)
+			config = &localConfig.LocalConfig{}
 		}
 
-		clientset, err := kubernetes.NewForConfig(config)
-		if err != nil {
-			log.Fatal(err)
+		forceNamespace := c.Bool("force-namespace")
+		if forceNamespace {
+			config.ForceNamespace = forceNamespace
+		}
+		namespace := c.String("namespace")
+		if namespace != "" {
+			config.Namespace = namespace
+		}
+		deployment := c.String("deployment")
+		if deployment != "" {
+			config.Deployment = deployment
+		}
+		container := c.String("container")
+		if container != "" {
+			config.Container = container
+		}
+		if config.Container == "" {
+			config.Container = config.Deployment
 		}
 
-		describer := services.NewPodDescriber(clientset)
-
-		// TODO: merge with config file
-		envs, err := describer.ReadEnvs(c.Context, c.String("namespace"), c.String("pod"), c.String("container"))
+		err = config.EnsureValid()
 		if err != nil {
 			return err
 		}
 
-		process := services.StreamingCommand("bash", "-c", c.String("command"))
-		services.AddEnvs(process, envs)
+		clientset, err := k8s.NewClientSet(c.String("kube-config"))
+		if err != nil {
+			return err
+		}
+
+		describer := k8s.NewDeploymentDescriber(clientset, config.ForceNamespace)
+
+		ctx, cancel := context.WithTimeout(c.Context, 30*time.Second)
+		defer cancel()
+		envs, err := describer.ReadEnvs(ctx, config.Namespace, config.Deployment, config.Container)
+		if err != nil {
+			return err
+		}
+
+		process := services.StreamingCommand(c.String("command"))
+		services.AddEnvs(process, append(envs, config.Env...))
 
 		return process.Run()
 	},

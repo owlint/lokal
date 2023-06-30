@@ -11,7 +11,7 @@ import (
 func main() {
 	app := &cli.App{
 		Name:  "Lokal CLI",
-		Usage: "Easily run your local application",
+		Usage: "Easily run your kubernetes applications in local.",
 		Commands: []*cli.Command{
 			commands.RunCommand,
 		},

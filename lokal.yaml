@@ -1,0 +1,4 @@
+namespace: such-namespace
+deployment: such-deployment
+container: such-container
+command: "echo Hello world"
