@@ -8,19 +8,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Forwarding struct {
-	FromPort int `yaml:"from-port"`
-	ToPort   int `yaml:"to-port"`
-}
-
 type LocalConfig struct {
 	Env            []domain.EnvironmentVariable `yaml:"env"`
-	Forward        []Forwarding                 `yaml:"forward"`
 	Command        string                       `yaml:"command"`
 	Namespace      string                       `yaml:"namespace"`
 	Deployment     string                       `yaml:"deployment"`
 	Container      string                       `yaml:"container"`
-	ForceNamespace bool                         `yaml:"force-namespace"`
+	ForceNamespace bool                         `yaml:"-"`
 }
 
 func (c LocalConfig) EnsureValid() error {

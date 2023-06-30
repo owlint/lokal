@@ -15,7 +15,7 @@ import (
 
 var RunCommand = &cli.Command{
 	Name:  "run",
-	Usage: "Run command alongside services",
+	Usage: "Run a local application",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:     "namespace",
@@ -39,7 +39,7 @@ var RunCommand = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:     "force-namespace",
-			Usage:    "Add namespace to environnement variables referencing local deployment.",
+			Usage:    "Append namespace to url environnement variables referencing local deployment. Ex: http://myapp/ will be converted to http://myapp.mynamespace/. This feature is useful when running lokal alongside Telepresence.",
 			Value:    true,
 			Required: false,
 		},
@@ -86,6 +86,11 @@ var RunCommand = &cli.Command{
 			config.Container = config.Deployment
 		}
 
+		command := c.String("command")
+		if command != "" {
+			config.Command = command
+		}
+
 		err = config.EnsureValid()
 		if err != nil {
 			return err
@@ -105,7 +110,7 @@ var RunCommand = &cli.Command{
 			return err
 		}
 
-		process := services.StreamingCommand(c.String("command"))
+		process := services.StreamingCommand(config.Command)
 		services.AddEnvs(process, append(envs, config.Env...))
 
 		return process.Run()
