@@ -1,0 +1,13 @@
+run:
+  timeout: 5m
+linters:
+  enable:
+    - goconst
+    - gocritic
+    - gofmt
+    - goimports
+    - gosec
+    - loggercheck
+    - misspell
+    - revive
+    - funlen
