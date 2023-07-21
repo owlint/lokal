@@ -29,7 +29,7 @@ var RunCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:     "container",
-			Usage:    "Container within deployment. Will use pod name if ommited.",
+			Usage:    "Container within deployment. Will use pod name if omitted.",
 			Required: false,
 		},
 		&cli.StringFlag{
